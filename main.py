@@ -73,7 +73,7 @@ def honeypot(
                 "phoneNumbers": session["intelligence"].get("phoneNumbers", []),
                 "suspiciousKeywords": session["intelligence"].get("suspiciousKeywords", [])
             },
-            "agentNotes": agent_output["agent_notes"]
+            "agent_notes": generate_agent_notes(session)
         }
 
         try:
