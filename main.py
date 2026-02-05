@@ -1,26 +1,31 @@
+"""
+Honeypot API backend for Render.
+Uses Redis for session state. Set REDIS_HOST, REDIS_PORT (or REDIS_URL via redis_client).
+"""
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 import requests
 import os
-from session_store import get_session, save_session
-from agent.agent import agent_step
+import logging
 from typing import List, Dict, Optional
 
+from session_store import get_session, save_session
+from agent.agent import agent_step
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 API_KEY = os.getenv("API_KEY", "dev_key")
+CALLBACK_URL = "https://hackathon.guvi.in/api/updateHoneyPotFinalResult"
 
-app = FastAPI()
-
-
-# ----------------------------
-# Health check
-# ----------------------------
-@app.get("/")
-def health():
-    return {"status": "backend running"}
+app = FastAPI(title="Agentic Honeypot API", version="1.0")
 
 
 # ----------------------------
-# Request models
+# Request/Response models (per spec)
 # ----------------------------
 class Message(BaseModel):
     sender: str
@@ -36,61 +41,75 @@ class HoneypotRequest(BaseModel):
 
 
 # ----------------------------
-# Honeypot API
+# Health check (for Render health checks)
+# ----------------------------
+@app.get("/")
+def health():
+    return {"status": "backend running"}
+
+
+# ----------------------------
+# Honeypot API (6.1 First Message / 6.2 Follow-Up)
 # ----------------------------
 @app.post("/api/honeypot")
 def honeypot(
     body: HoneypotRequest,
-    x_api_key: str = Header(None, alias="x-api-key")
+    x_api_key: Optional[str] = Header(None, alias="x-api-key"),
 ):
-    # 1️⃣ API key check
-    if x_api_key != API_KEY:
+    # 1. API Authentication
+    if not x_api_key or x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
     session_id = body.sessionId
     incoming_text = body.message.text
 
-    # 2️⃣ Load or create session (Redis)
+    # 2. Load or create session (Redis)
     session = get_session(session_id)
 
-    # 3️⃣ Run agent step
+    # 3. Run agent step
     agent_output = agent_step(session, incoming_text)
 
-    # 4️⃣ Persist updated session
+    # 4. Persist updated session
     save_session(session_id, session)
 
-    # 5️⃣ Mandatory final callback (ONLY ONCE, RACE-SAFE)
+    # 5. Mandatory final result callback (once per session, race-safe)
     if agent_output["should_finalize"] and not session.get("finalized", False):
-        # 🔒 Mark finalized FIRST to prevent duplicate callbacks
         session["finalized"] = True
         save_session(session_id, session)
 
+        intelligence = session.get("intelligence", {})
         payload = {
             "sessionId": session_id,
             "scamDetected": session.get("scam_detected", True),
-            "totalMessagesExchanged": len(session["messages"]),
+            "totalMessagesExchanged": len(session.get("messages", [])),
             "extractedIntelligence": {
-                "bankAccounts": session["intelligence"].get("bankAccounts", []),
-                "upiIds": session["intelligence"].get("upiIds", []),
-                "phishingLinks": session["intelligence"].get("phishingLinks", []),
-                "phoneNumbers": session["intelligence"].get("phoneNumbers", []),
-                "suspiciousKeywords": session["intelligence"].get("suspiciousKeywords", [])
+                "bankAccounts": intelligence.get("bankAccounts", []),
+                "upiIds": intelligence.get("upiIds", []),
+                "phishingLinks": intelligence.get("phishingLinks", []),
+                "phoneNumbers": intelligence.get("phoneNumbers", []),
+                "suspiciousKeywords": intelligence.get("suspiciousKeywords", []),
             },
-            "agentNotes": agent_output["agent_notes"]
+            "agentNotes": agent_output["agent_notes"],
         }
 
         try:
-            requests.post(
-                "https://hackathon.guvi.in/api/updateHoneyPotFinalResult",
-                json=payload,
-                timeout=5
-            )
+            requests.post(CALLBACK_URL, json=payload, timeout=5)
+            logger.info("Final result callback sent for session %s", session_id)
         except Exception as e:
-            # Do NOT crash API even if callback fails
-            print("Callback failed:", e)
+            logger.error("Callback failed: %s", e)
 
-    # 6️⃣ Return agent reply (SPEC FORMAT)
+    # 6. Agent output (per spec)
     return {
         "status": "success",
-        "reply": agent_output["reply"]
+        "reply": agent_output["reply"],
     }
+
+
+# ----------------------------
+# Run with: uvicorn app:app --host 0.0.0.0 --port 8000
+# On Render, set PORT in env and use: uvicorn app:app --host 0.0.0.0 --port $PORT
+# ----------------------------
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
