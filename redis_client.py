@@ -4,9 +4,9 @@ import redis
 # ----------------------------
 # Redis configuration
 # ----------------------------
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
+REDIS_HOST = os.environ["REDIS_HOST"]
+REDIS_PORT = int(os.environ["REDIS_PORT"])
+REDIS_PASSWORD = os.environ["REDIS_PASSWORD"]
 
 # ----------------------------
 # Redis client (singleton)
