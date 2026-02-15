@@ -78,7 +78,7 @@ def agent_step(session: dict, incoming_text: str) -> dict:
 
     allow_llm = (
         len(llm_window) < LLM_MAX_CALLS
-        and should_use_llm(strategy, agent_state)
+        and should_use_llm(strategy, agent_state, session)
     )
 
     # -----------------------------
