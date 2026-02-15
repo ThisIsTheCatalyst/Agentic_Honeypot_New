@@ -13,6 +13,7 @@ TEMPLATES = {
             "Let me understand properly first."
         ],
 
+        
         "verify_claim": [
             "Why is this happening all of a sudden?",
             "I didn’t receive any bank message about this.",
