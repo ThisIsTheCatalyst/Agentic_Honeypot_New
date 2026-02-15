@@ -18,6 +18,7 @@ SUSPICIOUS_KEYWORDS = [
     "security", "unauthorized", "fraud", "suspicious activity"
 ]
 
+
 PHONE_CONTEXT = [
     "call", "contact", "whatsapp", "mobile", "phone", "reach", "dial"
 ]
