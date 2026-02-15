@@ -36,7 +36,6 @@ TEMPLATES = {
         "extract_identity": [
             "Who exactly are you calling from?",
             "Can you tell me your department name?",
-            "Is there any official reference number?",
             "How can I verify your identity?",
             "Which office are you representing?",
             "Can you explain your role clearly?"
@@ -94,7 +93,6 @@ TEMPLATES = {
         "extract_identity": [
             "Aap exactly kaun bol rahe ho?",
             "Aapka department ka naam kya hai?",
-            "Koi official ID ya reference number hai?",
             "Main kaise verify karun aapko?",
             "Aap kaunsi office se ho?",
             "Aap apna role clearly batao."
