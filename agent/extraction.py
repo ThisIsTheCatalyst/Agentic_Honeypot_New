@@ -19,20 +19,17 @@ SUSPICIOUS_KEYWORDS = [
 ]
 
 PHONE_CONTEXT = [
-    "call", "contact", "whatsapp",
-    "mobile", "phone", "reach", "dial"
+    "call", "contact", "whatsapp", "mobile", "phone", "reach", "dial"
 ]
 
 BANK_CONTEXT = [
-    "account number", "bank account", "transfer",
-    "deposit", "payment", "credited", "send money"
+    "account", "a/c", "bank", "transfer", "deposit",
+    "credited", "send money", "ifsc"
 ]
 
 
-def get_context(text, match, window=60):
-    pos = text.find(match)
-    return text[max(0, pos - window):pos + window].lower()
-
+def get_context(text, start, end, window=60):
+    return text[max(0, start - window):end + window].lower()
 
 def extract_intelligence(text: str):
     text_lower = text.lower()
@@ -62,21 +59,45 @@ def extract_intelligence(text: str):
     )
 
     # ----------------------
-    # Numeric candidates
+    # Phone Numbers (+91 + local)
     # ----------------------
-    numeric_candidates = re.findall(
+    phone_matches = re.finditer(
+        r"(\+91[\-\s]?)?[6-9]\d{9}",
+        text
+    )
+
+    for match in phone_matches:
+        number = match.group()
+        phone_numbers.append(number)
+        classified_numbers.add(number)
+
+    # ----------------------
+    # Numeric candidates (8–18 digits)
+    # ----------------------
+    numeric_matches = re.finditer(
         r"\b\d{8,18}\b",
         text
     )
 
-    for number in numeric_candidates:
+    for match in numeric_matches:
+        number = match.group()
+        start, end = match.span()
+        context = get_context(text, start, end)
+        length = len(number)
+
         if number in classified_numbers:
             continue
 
-        context = get_context(text, number)
-        length = len(number)
+        # 1️⃣ BANK ACCOUNT FIRST
+        if (
+            9 <= length <= 18
+            and any(word in context for word in BANK_CONTEXT)
+        ):
+            bank_accounts.append(number)
+            classified_numbers.add(number)
+            continue
 
-        # -------- Phone Logic --------
+        # 2️⃣ PHONE (context-based)
         if (
             length == 10
             and number[0] in "6789"
@@ -86,17 +107,10 @@ def extract_intelligence(text: str):
             classified_numbers.add(number)
             continue
 
-        # -------- Bank Account Logic --------
-        if (
-            11 <= length <= 18
-            and any(word in context for word in BANK_CONTEXT)
-        ):
-            bank_accounts.append(number)
+        # 3️⃣ Fallback phone
+        if length == 10 and number[0] in "6789":
+            phone_numbers.append(number)
             classified_numbers.add(number)
-            continue
-
-        # Otherwise ignore numeric (likely reference ID)
-        # Since schema does NOT allow referenceNumbers
 
     # ----------------------
     # Suspicious Keywords
