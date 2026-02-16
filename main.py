@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-API_KEY = os.getenv("API_KEY", "dev_key")
+API_KEY = os.getenv("API_KEY")
 REDIS_URL = os.getenv("REDIS_URL")
 
 if not REDIS_URL:
