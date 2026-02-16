@@ -39,6 +39,7 @@ class HoneypotRequest(BaseModel):
     sessionId: str
     message: Message
     conversationHistory: Optional[List[dict]] = None
+    metadata: Optional[Dict] = None
 
 
 @app.get("/")
@@ -61,7 +62,10 @@ def honeypot(
 
     session = get_session(session_id)
 
-
+    if body.metadata:
+        session["channel"] = body.metadata.get("channel")
+        session["locale"] = body.metadata.get("locale")
+        session["language"] = body.metadata.get("language")
    
     if not session.get("messages") and body.conversationHistory:
         rebuild_state_from_history(session, body.conversationHistory)
