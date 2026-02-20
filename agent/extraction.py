@@ -67,6 +67,14 @@ def extract_intelligence(text: str):
     )
 
     # ----------------------
+    # Email addresses (TLD required to avoid overlapping with UPI IDs)
+    # ----------------------
+    email_addresses = re.findall(
+        r"\b[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+\.?[a-zA-Z0-9-]*\b",
+        text
+    )
+
+    # ----------------------
     # Phone Numbers (+91 + local)
     # ----------------------
     phone_matches = re.finditer(
@@ -132,10 +140,45 @@ def extract_intelligence(text: str):
         if kw in text_lower
     ]
 
+    # ----------------------
+    # Case / Reference IDs (generic: case #, ref:, ticket, etc.)
+    # ----------------------
+    case_ids = []
+    for pattern in [
+        r"\b(?:case|ref|reference|ticket|complaint|id)[\s#:]*([a-zA-Z0-9-]{4,})\b",
+        r"\b(?:case|ref|reference)[\s#:]*(\d{4,})\b",
+    ]:
+        for m in re.finditer(pattern, text, re.IGNORECASE):
+            case_ids.append(m.group(1).strip())
+
+    # ----------------------
+    # Policy numbers
+    # ----------------------
+    policy_numbers = re.findall(
+        r"\bpolicy[\s#:]*(?:no\.?|number)?[\s#:]*([a-zA-Z0-9-]{3,})\b",
+        text,
+        re.IGNORECASE
+    )
+    policy_numbers = [p.strip() for p in policy_numbers if len(p.strip()) >= 3]
+
+    # ----------------------
+    # Order numbers / Order IDs
+    # ----------------------
+    order_numbers = re.findall(
+        r"\border[\s#:]*(?:id|no\.?|number)?[\s#:]*([a-zA-Z0-9-]{3,})\b",
+        text,
+        re.IGNORECASE
+    )
+    order_numbers = [o.strip() for o in order_numbers if len(o.strip()) >= 3]
+
     return {
         "bankAccounts": dedup_preserve_order(bank_accounts),
         "upiIds": dedup_preserve_order(upi_ids),
         "phishingLinks": dedup_preserve_order(phishing_links),
         "phoneNumbers": dedup_preserve_order(phone_numbers),
-        "suspiciousKeywords": dedup_preserve_order(suspicious_keywords)
+        "suspiciousKeywords": dedup_preserve_order(suspicious_keywords),
+        "emailAddresses": dedup_preserve_order(email_addresses),
+        "caseIds": dedup_preserve_order(case_ids),
+        "policyNumbers": dedup_preserve_order(policy_numbers),
+        "orderNumbers": dedup_preserve_order(order_numbers),
     }

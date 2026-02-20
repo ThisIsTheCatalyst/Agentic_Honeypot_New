@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from redis.exceptions import RedisError
 from redis_client import redis_client
 
@@ -19,7 +20,10 @@ def get_session(session_id: str) -> dict:
         raw = None 
 
     if raw:
-        return json.loads(raw)
+        session = json.loads(raw)
+        if "started_at" not in session:
+            session["started_at"] = time.time()
+        return session
 
     
     session = {
@@ -36,10 +40,16 @@ def get_session(session_id: str) -> dict:
             "upiIds": [],
             "phoneNumbers": [],
             "phishingLinks": [],
-            "suspiciousKeywords": []
+            "suspiciousKeywords": [],
+            "bankAccounts": [],
+            "emailAddresses": [],
+            "caseIds": [],
+            "policyNumbers": [],
+            "orderNumbers": []
         },
         "scam_detected": True,
-        "finalized": False
+        "finalized": False,
+        "started_at": time.time()
     }
 
     try:
